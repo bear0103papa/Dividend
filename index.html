@@ -60,6 +60,17 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -70,7 +81,9 @@
             <button @click="toggleSubscribed">{{ showSubscribed ? '顯示所有' : '只顯示已訂閱' }}</button>
             <button @click="updateData" :disabled="isUpdating">{{ isUpdating ? '更新中...' : '手動更新數據' }}</button>
         </div>
-        <table>
+        <div v-if="loading" class="loading">正在加載數據，請稍候...</div>
+        <div v-if="error" class="error">{{ error }}</div>
+        <table v-if="!loading && !error">
             <thead>
                 <tr>
                     <th>股票代碼</th>
@@ -106,7 +119,9 @@
                 subscribedStocks: JSON.parse(localStorage.getItem('subscribedStocks') || '[]'),
                 searchTerm: '',
                 showSubscribed: false,
-                isUpdating: false
+                isUpdating: false,
+                loading: true,
+                error: null
             },
             computed: {
                 filteredStocks() {
@@ -146,42 +161,50 @@
                         alert(message);
                     }
                 },
-updateData() {
-    this.isUpdating = true;
-    fetch('/.netlify/functions/update-data', { method: 'POST' })
-        .then(response => {
-            if (response.ok) {
-                alert('更新程序已啟動，請稍後刷新頁面查看最新數據。');
-            } else {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('更新失敗，請稍後再試。');
-        })
-        .finally(() => {
-            this.isUpdating = false;
-        });
-}
+                updateData() {
+                    this.isUpdating = true;
+                    fetch('/.netlify/functions/update-data', { method: 'POST' })
+                        .then(response => {
+                            if (response.ok) {
+                                alert('更新程序已啟動，請稍後刷新頁面查看最新數據。');
+                            } else {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('更新失敗，請稍後再試。');
+                        })
+                        .finally(() => {
+                            this.isUpdating = false;
+                        });
+                },
+                loadData() {
+                    this.loading = true;
+                    this.error = null;
+                    fetch('dividend_data.json')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            this.stocks = data;
+                            this.checkForUpdates();
+                        })
+                        .catch(e => {
+                            console.error('Error loading data:', e);
+                            this.error = '無法加載數據，請稍後再試。';
+                        })
+                        .finally(() => {
+                            this.loading = false;
+                        });
+                }
             },
-    mounted() {
-    fetch('dividend_data.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            mounted() {
+                this.loadData();
             }
-            return response.json();
-        })
-        .then(data => {
-            this.stocks = data;
-            this.checkForUpdates();
-        })
-        .catch(e => {
-            console.error('Error loading data:', e);
-            alert('無法加載數據，請稍後再試。');
-        });
-}
         });
     </script>
 </body>
