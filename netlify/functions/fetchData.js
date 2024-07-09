@@ -1,5 +1,3 @@
-npm install node-fetch
-
 const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
@@ -15,13 +13,13 @@ exports.handler = async (event, context) => {
             fetch(twseUrl)
         ]);
 
-        const tpexData = await tpexResponse.text(); // 根據實際情況解析tpex數據
+        const tpexText = await tpexResponse.text();
         const twseData = await twseResponse.json();
 
         // 返回抓取的數據
         return {
             statusCode: 200,
-            body: JSON.stringify({ tpexData, twseData }),
+            body: JSON.stringify({ tpexData: tpexText, twseData }),
         };
     } catch (error) {
         return { statusCode: 500, body: error.toString() };
