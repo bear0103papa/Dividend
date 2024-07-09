@@ -1,69 +1,62 @@
 import requests
-import pandas as pd
-from datetime import datetime
-import time
+from bs4 import BeautifulSoup
 import json
+from datetime import datetime, timedelta
 
-def scrape_twse():
-    url = "https://www.twse.com.tw/rwd/zh/exRight/TWT49U"
-    params = {
-        "startDate": "20230101",
-        "endDate": datetime.now().strftime("%Y%m%d"),
-        "response": "json"
-    }
-    
-    response = requests.get(url, params=params)
+def fetch_tpex_data(date):
+    url = f"https://www.tpex.org.tw/web/stock/exright/dailyquo/exDailyQ.php?l=zh-tw&d={date}"
+    response = requests.get(url)
     data = response.json()
-    
-    if data['stat'] == 'OK':
-        df = pd.DataFrame(data['data'], columns=data['fields'])
-        return df
-    else:
-        print("無法從台灣證券交易所獲取數據")
-        return None
+    return data.get('aaData', [])
 
-def scrape_tpex():
-    url = "https://www.tpex.org.tw/web/stock/exright/dailyquo/exDailyQ_result.php"
-    params = {
-        "l": "zh-tw",
-        "d": datetime.now().strftime("%Y%m%d"),
-        "o": "json"
-    }
-    
-    response = requests.get(url, params=params)
+def fetch_twse_data(start_date, end_date):
+    url = f"https://www.twse.com.tw/rwd/zh/exRight/TWT49U?startDate={start_date}&endDate={end_date}&response=json"
+    response = requests.get(url)
     data = response.json()
-    
-    if data['iTotalRecords'] > 0:
-        df = pd.DataFrame(data['aaData'])
-        return df
-    else:
-        print("無法從櫃買中心獲取數據")
-        return None
+    return data.get('data', [])
 
-def process_data(df, source):
-    if df is not None:
-        df['來源'] = source
-        df['更新時間'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return df
+def process_data(tpex_data, twse_data):
+    combined_data = {}
+    
+    for item in tpex_data:
+        stock_id = item[0]
+        company_name = item[1]
+        ex_dividend_date = item[2]
+        cash_dividend = item[3]
+        
+        combined_data[stock_id] = {
+            "company_name": company_name,
+            "ex_dividend_date": ex_dividend_date,
+            "cash_dividend": cash_dividend,
+            "market": "TPEx"
+        }
+    
+    for item in twse_data:
+        stock_id = item[0]
+        company_name = item[1]
+        ex_dividend_date = item[3]
+        cash_dividend = item[4]
+        
+        combined_data[stock_id] = {
+            "company_name": company_name,
+            "ex_dividend_date": ex_dividend_date,
+            "cash_dividend": cash_dividend,
+            "market": "TWSE"
+        }
+    
+    return combined_data
 
 def main():
-    print("正在爬取台灣證券交易所的數據...")
-    twse_df = process_data(scrape_twse(), '台灣證券交易所')
+    today = datetime.now().strftime("%Y%m%d")
+    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y%m%d")
     
-    time.sleep(2)  # 添加延遲以避免快速連續請求
+    tpex_data = fetch_tpex_data(today)
+    twse_data = fetch_twse_data(today, tomorrow)
     
-    print("正在爬取櫃買中心的數據...")
-    tpex_df = process_data(scrape_tpex(), '櫃買中心')
+    combined_data = process_data(tpex_data, twse_data)
     
-    # 合併數據
-    combined_df = pd.concat([twse_df, tpex_df], ignore_index=True)
-    
-    # 將數據轉換為JSON格式並保存
-    if not combined_df.empty:
-        combined_df.to_json('dividend_data.json', orient='records', force_ascii=False)
-        print("合併後的數據已保存到 dividend_data.json")
-    else:
-        print("沒有可用的數據")
+    with open('data/stock_data.json', 'w', encoding='utf-8') as f:
+        json.dump(combined_data, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
     main()
