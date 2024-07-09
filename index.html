@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股息資訊追蹤器</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>股息資訊追蹤器</h1>
+        <div>
+            <input v-model="searchTerm" placeholder="搜尋股票代碼或名稱">
+            <button @click="toggleSubscribed">{{ showSubscribed ? '顯示所有' : '只顯示已訂閱' }}</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>股票代碼</th>
+                    <th>股票名稱</th>
+                    <th>除權息日期</th>
+                    <th>股息</th>
+                    <th>來源</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="stock in filteredStocks" :key="stock['股票代號']">
+                    <td>{{ stock['股票代號'] }}</td>
+                    <td>{{ stock['股票名稱'] }}</td>
+                    <td>{{ stock['除權息日期'] }}</td>
+                    <td>{{ stock['現金股利'] }}</td>
+                    <td>{{ stock['來源'] }}</td>
+                    <td>
+                        <button @click="toggleSubscription(stock['股票代號'])">
+                            {{ isSubscribed(stock['股票代號']) ? '取消訂閱' : '訂閱' }}
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                stocks: [],
+                subscribedStocks: JSON.parse(localStorage.getItem('subscribedStocks') || '[]'),
+                searchTerm: '',
+                showSubscribed: false
+            },
+            computed: {
+                filteredStocks() {
+                    return this.stocks.filter(stock => {
+                        const matchesSearch = stock['股票代號'].includes(this.searchTerm) || 
+                                              stock['股票名稱'].includes(this.searchTerm);
+                        const matchesSubscription = !this.showSubscribed || this.isSubscribed(stock['股票代號']);
+                        return matchesSearch && matchesSubscription;
+                    });
+                }
+            },
+            methods: {
+                toggleSubscription(stockId) {
+                    const index = this.subscribedStocks.indexOf(stockId);
+                    if (index > -1) {
+                        this.subscribedStocks.splice(index, 1);
+                    } else {
+                        this.subscribedStocks.push(stockId);
+                    }
+                    localStorage.setItem('subscribedStocks', JSON.stringify(this.subscribedStocks));
+                },
+                isSubscribed(stockId) {
+                    return this.subscribedStocks.includes(stockId);
+                },
+                toggleSubscribed() {
+                    this.showSubscribed = !this.showSubscribed;
+                },
+                checkForUpdates() {
+                    const today = new Date().toISOString().split('T')[0];
+                    const updatedStocks = this.stocks.filter(stock => 
+                        this.isSubscribed(stock['股票代號']) && stock['除權息日期'] === today
+                    );
+                    if (updatedStocks.length > 0) {
+                        const message = updatedStocks.map(stock => 
+                            `${stock['股票名稱']}(${stock['股票代號']}) 今日除權息`
+                        ).join('\n');
+                        alert(message);
+                    }
+                }
+            },
+            mounted() {
+                fetch('dividend_data.json')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.stocks = data;
+                        this.checkForUpdates();
+                    });
+            }
+        });
+    </script>
+</body>
+</html>
