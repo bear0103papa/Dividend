@@ -3,209 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>股息資訊追蹤器</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        #app {
-            max-width: 1200px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-        }
-        input, button {
-            margin: 10px 5px;
-            padding: 5px 10px;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-            color: #333;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        button {
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            font-style: italic;
-            color: #666;
-        }
-        .error {
-            color: red;
-            text-align: center;
-            padding: 20px;
-        }
-    </style>
+    <title>股息發放日查詢與提醒</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <h1>股息資訊追蹤器</h1>
-        <div>
-            <input v-model="searchTerm" placeholder="搜尋股票代碼或名稱">
-            <button @click="toggleSubscribed">{{ showSubscribed ? '顯示所有' : '只顯示已訂閱' }}</button>
-            <button @click="updateData" :disabled="isUpdating">{{ isUpdating ? '更新中...' : '手動更新數據' }}</button>
-        </div>
-        <div v-if="loading" class="loading">正在加載數據，請稍候...</div>
-        <div v-if="error" class="error">{{ error }}</div>
-        <table v-if="!loading && !error">
-            <thead>
-                <tr>
-                    <th>股票代碼</th>
-                    <th>股票名稱</th>
-                    <th>除權息日期</th>
-                    <th>股息</th>
-                    <th>來源</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="stock in filteredStocks" :key="stock['股票代號']">
-                    <td>{{ stock['股票代號'] }}</td>
-                    <td>{{ stock['股票名稱'] }}</td>
-                    <td>{{ stock['除權息日期'] }}</td>
-                    <td>{{ stock['現金股利'] }}</td>
-                    <td>{{ stock['來源'] }}</td>
-                    <td>
-                        <button @click="toggleSubscription(stock['股票代號'])">
-                            {{ isSubscribed(stock['股票代號']) ? '取消訂閱' : '訂閱' }}
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <h1>股息發放日查詢與提醒</h1>
+    <div>
+        <label for="startDate">開始日期：</label>
+        <input type="date" id="startDate">
+        <label for="endDate">結束日期：</label>
+        <input type="date" id="endDate">
+        <button onclick="fetchData()">查詢</button>
     </div>
-
-    <script>
-        new Vue({
-            el: '#app',
-            data: {
-                stocks: [],
-                subscribedStocks: JSON.parse(localStorage.getItem('subscribedStocks') || '[]'),
-                searchTerm: '',
-                showSubscribed: false,
-                isUpdating: false,
-                loading: true,
-                error: null
-            },
-            computed: {
-                filteredStocks() {
-                    return this.stocks.filter(stock => {
-                        const matchesSearch = stock['股票代號'].includes(this.searchTerm) || 
-                                              stock['股票名稱'].includes(this.searchTerm);
-                        const matchesSubscription = !this.showSubscribed || this.isSubscribed(stock['股票代號']);
-                        return matchesSearch && matchesSubscription;
-                    });
-                }
-            },
-            methods: {
-                toggleSubscription(stockId) {
-                    const index = this.subscribedStocks.indexOf(stockId);
-                    if (index > -1) {
-                        this.subscribedStocks.splice(index, 1);
-                    } else {
-                        this.subscribedStocks.push(stockId);
-                    }
-                    localStorage.setItem('subscribedStocks', JSON.stringify(this.subscribedStocks));
-                },
-                isSubscribed(stockId) {
-                    return this.subscribedStocks.includes(stockId);
-                },
-                toggleSubscribed() {
-                    this.showSubscribed = !this.showSubscribed;
-                },
-                checkForUpdates() {
-                    const today = new Date().toISOString().split('T')[0];
-                    const updatedStocks = this.stocks.filter(stock => 
-                        this.isSubscribed(stock['股票代號']) && stock['除權息日期'] === today
-                    );
-                    if (updatedStocks.length > 0) {
-                        const message = updatedStocks.map(stock => 
-                            `${stock['股票名稱']}(${stock['股票代號']}) 今日除權息`
-                        ).join('\n');
-                        alert(message);
-                    }
-                },
-                updateData() {
-                    this.isUpdating = true;
-                    fetch('/.netlify/functions/update-data', { method: 'POST' })
-                        .then(response => {
-                            if (response.ok) {
-                                alert('更新程序已啟動，請稍後刷新頁面查看最新數據。');
-                            } else {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('更新失敗，請稍後再試。');
-                        })
-                        .finally(() => {
-                            this.isUpdating = false;
-                        });
-                },
-    loadData() {
-    this.loading = true;
-    this.error = null;
-    fetch('./dividend_data.json')  // 使用相對路徑
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            this.stocks = data;
-            this.checkForUpdates();
-        })
-        .catch(e => {
-            console.error('Error loading data:', e);
-            this.error = '無法加載數據，請稍後再試。錯誤：' + e.message;
-        })
-        .finally(() => {
-            this.loading = false;
-        });
-}
-            },
-            mounted() {
-                this.loadData();
-            }
-        });
-    </script>
+    <table id="results">
+        <thead>
+            <tr>
+                <th>股票代碼</th>
+                <th>公司名稱</th>
+                <th>股息發放日</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 結果將顯示在這裡 -->
+        </tbody>
+    </table>
+    <script src="script.js"></script>
 </body>
 </html>
