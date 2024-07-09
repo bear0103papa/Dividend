@@ -179,28 +179,28 @@
                             this.isUpdating = false;
                         });
                 },
-                loadData() {
-                    this.loading = true;
-                    this.error = null;
-                    fetch('dividend_data.json')
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            this.stocks = data;
-                            this.checkForUpdates();
-                        })
-                        .catch(e => {
-                            console.error('Error loading data:', e);
-                            this.error = '無法加載數據，請稍後再試。';
-                        })
-                        .finally(() => {
-                            this.loading = false;
-                        });
-                }
+    loadData() {
+    this.loading = true;
+    this.error = null;
+    fetch('./dividend_data.json')  // 使用相對路徑
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            this.stocks = data;
+            this.checkForUpdates();
+        })
+        .catch(e => {
+            console.error('Error loading data:', e);
+            this.error = '無法加載數據，請稍後再試。錯誤：' + e.message;
+        })
+        .finally(() => {
+            this.loading = false;
+        });
+}
             },
             mounted() {
                 this.loadData();
