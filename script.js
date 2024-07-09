@@ -2,23 +2,18 @@ async function fetchData() {
     const startDate = document.getElementById('startDate').value.replace(/-/g, '');
     const endDate = document.getElementById('endDate').value.replace(/-/g, '');
 
-    const tpexUrl = `https://www.tpex.org.tw/web/stock/exright/dailyquo/exDailyQ.php?l=zh-tw`;
-    const twseUrl = `https://www.twse.com.tw/rwd/zh/exRight/TWT49U?startDate=${startDate}&endDate=${endDate}&response=json`;
+    const url = `/.netlify/functions/fetchData?startDate=${startDate}&endDate=${endDate}`;
 
     try {
-        const [tpexResponse, twseResponse] = await Promise.all([
-            fetch(tpexUrl),
-            fetch(twseUrl)
-        ]);
+        const response = await fetch(url);
+        const data = await response.json();
 
-        const tpexData = await tpexResponse.json();
-        const twseData = await twseResponse.json();
-
-        displayResults(tpexData, twseData);
+        displayResults(data.tpexData, data.twseData);
     } catch (error) {
         console.error('Error fetching data:', error);
     }
 }
+
 
 function displayResults(tpexData, twseData) {
     const tbody = document.querySelector('#results tbody');
