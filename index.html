@@ -6,9 +6,32 @@
     <title>股息資訊追蹤器</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        input, button {
+            margin: 10px 5px;
+            padding: 5px 10px;
+        }
         table {
             border-collapse: collapse;
             width: 100%;
+            margin-top: 20px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -17,6 +40,25 @@
         }
         th {
             background-color: #f2f2f2;
+            color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -26,6 +68,7 @@
         <div>
             <input v-model="searchTerm" placeholder="搜尋股票代碼或名稱">
             <button @click="toggleSubscribed">{{ showSubscribed ? '顯示所有' : '只顯示已訂閱' }}</button>
+            <button @click="updateData" :disabled="isUpdating">{{ isUpdating ? '更新中...' : '手動更新數據' }}</button>
         </div>
         <table>
             <thead>
@@ -62,7 +105,8 @@
                 stocks: [],
                 subscribedStocks: JSON.parse(localStorage.getItem('subscribedStocks') || '[]'),
                 searchTerm: '',
-                showSubscribed: false
+                showSubscribed: false,
+                isUpdating: false
             },
             computed: {
                 filteredStocks() {
@@ -101,6 +145,34 @@
                         ).join('\n');
                         alert(message);
                     }
+                },
+                updateData() {
+                    this.isUpdating = true;
+                    // 替換以下URL中的{owner}和{repo}為你的GitHub用戶名和倉庫名
+                    fetch('https://api.github.com/repos/bear0103papa/Dividend/dispatches', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'token ${{ secrets.REPO_ACCESS_TOKEN }}',
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({
+                            event_type: 'update-data'
+                        })
+                    })
+                    .then(response => {
+                        if (response.status === 204) {
+                            alert('更新程序已啟動，請稍後刷新頁面查看最新數據。');
+                        } else {
+                            alert('更新失敗，請稍後再試。');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('更新失敗，請稍後再試。');
+                    })
+                    .finally(() => {
+                        this.isUpdating = false;
+                    });
                 }
             },
             mounted() {
