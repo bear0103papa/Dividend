@@ -146,35 +146,23 @@
                         alert(message);
                     }
                 },
-            updateData() {
+updateData() {
     this.isUpdating = true;
-    const owner = 'bear0103papa';  // 替換為你的 GitHub 用戶名
-    const repo = 'Dividend';  // 替換為你的倉庫名
-    fetch(`https://api.github.com/repos/${owner}/${repo}/dispatches`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${TOKEN}`,  // 請確保 TOKEN 變量已經設置
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            event_type: 'update-data'
+    fetch('/.netlify/functions/update-data', { method: 'POST' })
+        .then(response => {
+            if (response.ok) {
+                alert('更新程序已啟動，請稍後刷新頁面查看最新數據。');
+            } else {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
         })
-    })
-    .then(response => {
-        if (response.status === 204) {
-            alert('更新程序已啟動，請稍後刷新頁面查看最新數據。');
-        } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('更新失敗，請稍後再試。');
-    })
-    .finally(() => {
-        this.isUpdating = false;
-    });
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新失敗，請稍後再試。');
+        })
+        .finally(() => {
+            this.isUpdating = false;
+        });
 }
             },
     mounted() {
